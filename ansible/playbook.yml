@@ -1,0 +1,45 @@
+- name: Install and configure nginx
+  hosts: local
+  become: true
+  tasks:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Install nginx
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+
+    - name: Create the site directory
+      ansible.builtin.file:
+        path: /var/www/devops
+        state: directory
+        mode: "0755"
+
+    - name: Copy index.html
+      ansible.builtin.copy:
+        content: "Deployed with Ansible\n"
+        dest: /var/www/devops/index.html
+        mode: "0644"
+      notify: Restart nginx
+
+    - name: Point the default site at /var/www/devops
+      ansible.builtin.lineinfile:
+        path: /etc/nginx/sites-available/default
+        regexp: '^\s*root /var/www/'
+        line: "        root /var/www/devops;"
+      notify: Restart nginx
+
+    - name: Start nginx and enable it at boot
+      ansible.builtin.service:
+        name: nginx
+        state: started
+        enabled: true
+
+  handlers:
+    - name: Restart nginx
+      ansible.builtin.service:
+        name: nginx
+        state: restarted
